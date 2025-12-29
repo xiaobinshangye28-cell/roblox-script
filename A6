@@ -1,0 +1,412 @@
+if not game:IsLoaded() then
+game.Loaded:Wait()
+end
+
+-- Services
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+
+local LocalPlayer = Players.LocalPlayer
+
+-- Configuration
+getgenv().AreaHubCfg = getgenv().AreaHubCfg or {
+InfinityJump = false,
+WalkSpeed = 16,
+JumpPower = 50,
+ESPMode = "OFF",
+ESPDistance = 300,
+ESPColor = Color3.fromRGB(255, 120, 200),
+NoClip = false,
+ExternalFly = false,
+InfiniteYield = false
+}
+local cfg = getgenv().AreaHubCfg
+
+-- ==================== GUI Setup ====================
+
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "AreaHub"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+
+local MainFrame = Instance.new("Frame", ScreenGui)
+MainFrame.Size = UDim2.fromOffset(380, 240)
+MainFrame.Position = UDim2.fromScale(0.5, 0.6) - UDim2.fromOffset(190, 120)
+MainFrame.BackgroundTransparency = 0
+Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 22)
+
+local Gradient = Instance.new("UIGradient", MainFrame)
+Gradient.Color = ColorSequence.new{
+ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 210, 235)),
+ColorSequenceKeypoint.new(1, Color3.fromRGB(210, 235, 255))
+}
+Gradient.Rotation = 45
+
+local TitleBar = Instance.new("Frame", MainFrame)
+TitleBar.Size = UDim2.fromOffset(380, 40)
+TitleBar.BackgroundTransparency = 1
+
+local Title = Instance.new("TextLabel", TitleBar)
+Title.Size = UDim2.fromOffset(200, 30)
+Title.Position = UDim2.fromOffset(12, 8)
+Title.Text = "Area Hub"
+Title.Font = Enum.Font.GothamBold
+Title.TextSize = 20
+Title.TextColor3 = Color3.new(1, 1, 1)
+Title.TextStrokeColor3 = Color3.fromRGB(255, 160, 220)
+Title.TextStrokeTransparency = 0.35
+Title.BackgroundTransparency = 1
+Title.TextXAlignment = Enum.TextXAlignment.Left
+
+local MinimizeButton = Instance.new("TextButton", TitleBar)
+MinimizeButton.Size = UDim2.fromOffset(30, 30)
+MinimizeButton.Position = UDim2.fromScale(1, 0.5) - UDim2.fromOffset(38, 15)
+MinimizeButton.Text = "−"
+MinimizeButton.Font = Enum.Font.GothamBold
+MinimizeButton.TextSize = 22
+MinimizeButton.BackgroundColor3 = Color3.fromRGB(255, 200, 215)
+Instance.new("UICorner", MinimizeButton).CornerRadius = UDim.new(1, 0)
+
+local IconButton = Instance.new("ImageButton", ScreenGui)
+IconButton.Size = UDim2.fromOffset(64, 64)
+IconButton.Position = UDim2.fromScale(0.05, 0.75)
+IconButton.Image = "rbxassetid://14841457175"
+IconButton.BackgroundColor3 = Color3.fromRGB(255, 220, 235)
+IconButton.Visible = false
+Instance.new("UICorner", IconButton).CornerRadius = UDim.new(1, 0)
+
+local NavPanel = Instance.new("Frame", MainFrame)
+NavPanel.Size = UDim2.fromOffset(100, 170)
+NavPanel.Position = UDim2.fromOffset(10, 46)
+NavPanel.BackgroundTransparency = 1
+local NavLayout = Instance.new("UIListLayout", NavPanel)
+NavLayout.Padding = UDim.new(0, 8)
+
+local ScrollFrame = Instance.new("ScrollingFrame", MainFrame)
+ScrollFrame.Size = UDim2.fromOffset(250, 170)
+ScrollFrame.Position = UDim2.fromOffset(120, 46)
+ScrollFrame.BackgroundTransparency = 1
+ScrollFrame.ScrollBarThickness = 6
+ScrollFrame.ScrollBarImageColor3 = Color3.fromRGB(255, 180, 220)
+ScrollFrame.AutomaticCanvasSize = Enum.AutomaticSize.Y
+
+local PagesContainer = Instance.new("Frame", ScrollFrame)
+PagesContainer.Size = UDim2.fromScale(1, 1)
+PagesContainer.BackgroundTransparency = 1
+local PagesLayout = Instance.new("UIListLayout", PagesContainer)
+PagesLayout.Padding = UDim.new(0, 10)
+
+-- ==================== ドラッグ機能 ====================
+
+local function makeDraggable(targetFrame, dragArea)
+local dragging = false
+local dragStart
+local startPos
+
+dragArea.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = true
+        dragStart = input.Position
+        startPos = targetFrame.Position
+    end
+end)
+
+dragArea.InputChanged:Connect(function(input)
+    if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+        local delta = input.Position - dragStart
+        targetFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
+end)
+
+dragArea.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = false
+    end
+end)
+end
+
+makeDraggable(IconButton, IconButton)
+makeDraggable(MainFrame, TitleBar)
+-- ==================== Helper Functions ====================
+
+local function createNavButton(text)
+local btn = Instance.new("TextButton", NavPanel)
+btn.Size = UDim2.fromOffset(100, 36)
+btn.Text = text
+btn.Font = Enum.Font.GothamBold
+btn.TextSize = 16
+btn.BackgroundColor3 = Color3.fromRGB(255, 220, 235)
+Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 12)
+return btn
+end
+
+local function createPage()
+local frame = Instance.new("Frame", PagesContainer)
+frame.Size = UDim2.fromScale(1, 1)
+frame.Visible = false
+frame.BackgroundTransparency = 1
+local layout = Instance.new("UIListLayout", frame)
+layout.Padding = UDim.new(0, 10)
+return frame
+end
+
+local function animateToggle(button, enabled)
+TweenService:Create(button, TweenInfo.new(0.15, Enum.EasingStyle.Quad), {
+BackgroundColor3 = enabled and Color3.fromRGB(180, 255, 210) or Color3.fromRGB(255, 220, 235)
+}):Play()
+end
+
+local function createToggle(parent, name, getValue, setValue, onEnableScript)
+local button = Instance.new("TextButton", parent)
+button.Size = UDim2.fromOffset(250, 40)
+button.Font = Enum.Font.GothamBold
+button.TextSize = 16
+Instance.new("UICorner", button).CornerRadius = UDim.new(0, 14)
+
+local function update()
+    local value = getValue()
+    button.Text = name .. " : " .. (value and "ON" or "OFF")
+    animateToggle(button, value)
+end
+update()
+
+button.MouseButton1Click:Connect(function()
+    local newValue = not getValue()
+    setValue(newValue)
+    update()
+
+    if newValue and onEnableScript then
+        task.spawn(onEnableScript)
+    end
+end)
+end
+
+local function createHandleSlider(parent, label, min, max, step, getValue, setValue)
+local container = Instance.new("Frame", parent)
+container.Size = UDim2.fromOffset(250, 60)
+container.BackgroundTransparency = 1
+
+local labelObj = Instance.new("TextLabel", container)
+labelObj.Size = UDim2.fromOffset(250, 18)
+labelObj.Text = label .. ": " .. getValue()
+labelObj.Font = Enum.Font.GothamBold
+labelObj.TextSize = 14
+labelObj.BackgroundTransparency = 1
+labelObj.TextXAlignment = Enum.TextXAlignment.Left
+
+local track = Instance.new("Frame", container)
+track.Position = UDim2.fromOffset(0, 24)
+track.Size = UDim2.fromOffset(250, 12)
+track.BackgroundColor3 = Color3.fromRGB(230, 230, 230)
+Instance.new("UICorner", track).CornerRadius = UDim.new(1, 0)
+
+local fill = Instance.new("Frame", track)
+fill.Size = UDim2.fromScale((getValue() - min) / (max - min), 1)
+fill.BackgroundColor3 = Color3.fromRGB(180, 255, 210)
+Instance.new("UICorner", fill).CornerRadius = UDim.new(1, 0)
+
+local handle = Instance.new("TextButton", track)
+handle.Size = UDim2.fromOffset(24, 24)
+handle.Text = ""
+handle.BackgroundColor3 = Color3.new(1, 1, 1)
+handle.BorderSizePixel = 2
+handle.BorderColor3 = Color3.fromRGB(100, 100, 100)
+Instance.new("UICorner", handle).CornerRadius = UDim.new(1, 0)
+
+local dragging = false
+
+local function updateValue(value)
+    value = math.clamp(value, min, max)
+    value = math.floor(value / step + 0.5) * step
+    setValue(value)
+    local ratio = (value - min) / (max - min)
+    fill.Size = UDim2.fromScale(ratio, 1)
+    handle.Position = UDim2.fromScale(ratio, 0) - UDim2.fromOffset(12, -6)
+    labelObj.Text = label .. ": " .. value
+end
+
+updateValue(getValue())
+
+handle.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = true
+    end
+end)
+
+handle.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = false
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+        local relX = math.clamp((input.Position.X - track.AbsolutePosition.X) / track.AbsoluteSize.X, 0, 1)
+        updateValue(min + (max - min) * relX)
+    end
+end)
+
+track.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        local relX = math.clamp((input.Position.X - track.AbsolutePosition.X) / track.AbsoluteSize.X, 0, 1)
+        updateValue(min + (max - min) * relX)
+    end
+end)
+end
+
+-- ==================== Pages ====================
+
+local NavMain = createNavButton("Main")
+local NavPlayer = createNavButton("Player")
+local NavESP = createNavButton("ESP")
+
+local PageMain = createPage()
+local PagePlayer = createPage()
+local PageESP = createPage()
+
+local function showPage(page)
+for _, p in PagesContainer:GetChildren() do
+if p:IsA("Frame") then
+p.Visible = false
+end
+end
+page.Visible = true
+end
+showPage(PageMain)
+
+NavMain.MouseButton1Click:Connect(function() showPage(PageMain) end)
+NavPlayer.MouseButton1Click:Connect(function() showPage(PagePlayer) end)
+NavESP.MouseButton1Click:Connect(function() showPage(PageESP) end)
+
+-- Main Page
+createToggle(PageMain, "Infinity Jump",
+function() return cfg.InfinityJump end,
+function(v) cfg.InfinityJump = v end
+)
+
+createToggle(PageMain, "Infinite Yield",
+function() return cfg.InfiniteYield end,
+function(v) cfg.InfiniteYield = v end,
+function()
+loadstring(game:HttpGet("https://rawscripts.net/raw/Universal-Script-Infinite-Yield-31802"))()
+end
+)
+
+-- Player Page
+createHandleSlider(PagePlayer, "WalkSpeed", 8, 300, 2,
+function() return cfg.WalkSpeed end,
+function(v) cfg.WalkSpeed = v end
+)
+
+createHandleSlider(PagePlayer, "JumpPower", 20, 120, 5,
+function() return cfg.JumpPower end,
+function(v) cfg.JumpPower = v end
+)
+
+createToggle(PagePlayer, "NoClip",
+function() return cfg.NoClip end,
+function(v) cfg.NoClip = v end
+)
+
+createToggle(PagePlayer, "Fly (External)",
+function() return cfg.ExternalFly end,
+function(v) cfg.ExternalFly = v end,
+function()
+loadstring(game:HttpGet("https://raw.githubusercontent.com/XNEOFF/FlyGuiV3/main/FlyGuiV3.txt"))()
+end
+)
+
+-- ESP Page
+local function createESPModeButton(text, mode)
+local btn = Instance.new("TextButton", PageESP)
+btn.Size = UDim2.fromOffset(250, 36)
+btn.Text = text
+btn.Font = Enum.Font.GothamBold
+btn.TextSize = 16
+btn.BackgroundColor3 = Color3.fromRGB(210, 235, 255)
+Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 14)
+btn.MouseButton1Click:Connect(function()
+cfg.ESPMode = mode
+end)
+end
+
+createESPModeButton("ESP BOX", "BOX")
+createESPModeButton("ESP NAME", "NAME")
+createESPModeButton("ESP OFF", "OFF")
+
+createHandleSlider(PageESP, "ESP Distance", 50, 1000, 50,
+function() return cfg.ESPDistance end,
+function(v) cfg.ESPDistance = v end
+)
+
+-- ==================== Minimize / Restore ====================
+
+MinimizeButton.MouseButton1Click:Connect(function()
+MainFrame.Visible = false
+IconButton.Visible = true
+end)
+
+IconButton.MouseButton1Click:Connect(function()
+MainFrame.Visible = true
+IconButton.Visible = false
+makeDraggable(MainFrame, TitleBar)
+
+TweenService:Create(Title, TweenInfo.new(0.25), {TextStrokeTransparency = 0}):Play()
+task.delay(1, function()
+    TweenService:Create(Title, TweenInfo.new(0.4), {TextStrokeTransparency = 0.35}):Play()
+end)
+end)
+
+-- ==================== Features ====================
+
+RunService.RenderStepped:Connect(function()
+local Character = LocalPlayer.Character
+if not Character then return end
+
+local Humanoid = Character:FindFirstChildOfClass("Humanoid")
+if Humanoid then
+    Humanoid.WalkSpeed = cfg.WalkSpeed
+    Humanoid.JumpPower = cfg.JumpPower
+end
+
+if cfg.NoClip then
+    for _, part in ipairs(Character:GetDescendants()) do
+        if part:IsA("BasePart") then
+            part.CanCollide = false
+        end
+    end
+end
+end)
+
+UserInputService.JumpRequest:Connect(function()
+if cfg.InfinityJump then
+local Character = LocalPlayer.Character
+if Character then
+local Humanoid = Character:FindFirstChildOfClass("Humanoid")
+if Humanoid then
+Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+end
+end
+end
+end)
+
+-- Floating animation
+task.spawn(function()
+local t = 0
+local basePos = MainFrame.Position
+local iconBasePos = IconButton.Position
+while true do
+t += RunService.Heartbeat:Wait()
+local offset = math.sin(t * 2) * 0.004
+if MainFrame.Visible then
+MainFrame.Position = basePos + UDim2.new(0, 0, offset, 0)
+end
+if IconButton.Visible then
+IconButton.Position = iconBasePos + UDim2.new(0, 0, offset, 0)
+end
+end
+end)
+
+print("Area Hub - 完全版ロード完了！中身全部表示されます♪")
