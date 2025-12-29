@@ -1,0 +1,212 @@
+if not game:IsLoaded() then
+game.Loaded:Wait()
+end
+
+-- Services
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+
+local LocalPlayer = Players.LocalPlayer
+
+-- Configuration
+getgenv().AreaHubCfg = getgenv().AreaHubCfg or {
+InfinityJump = false,
+WalkSpeed = 16,
+JumpPower = 50,
+ESPMode = "OFF",
+ESPDistance = 300,
+ESPColor = Color3.fromRGB(255, 120, 200),
+NoClip = false,
+ExternalFly = false,
+InfiniteYield = false,
+AutoFarm = false -- 新しいAutoFarmフラグ
+}
+local cfg = getgenv().AreaHubCfg
+
+-- ==================== GUI Setup ====================
+
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "AreaHub"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+
+local MainFrame = Instance.new("Frame", ScreenGui)
+MainFrame.Size = UDim2.fromOffset(380, 240)
+MainFrame.Position = UDim2.fromScale(0.5, 0.6) - UDim2.fromOffset(190, 120)
+MainFrame.BackgroundTransparency = 0
+Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 22)
+
+local Gradient = Instance.new("UIGradient", MainFrame)
+Gradient.Color = ColorSequence.new{
+ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 210, 235)),
+ColorSequenceKeypoint.new(1, Color3.fromRGB(210, 235, 255))
+}
+Gradient.Rotation = 45
+
+local TitleBar = Instance.new("Frame", MainFrame)
+TitleBar.Size = UDim2.fromOffset(380, 40)
+TitleBar.BackgroundTransparency = 1
+
+local Title = Instance.new("TextLabel", TitleBar)
+Title.Size = UDim2.fromOffset(200, 30)
+Title.Position = UDim2.fromOffset(12, 8)
+Title.Text = "Area Hub"
+Title.Font = Enum.Font.GothamBold
+Title.TextSize = 20
+Title.TextColor3 = Color3.new(1, 1, 1)
+Title.TextStrokeColor3 = Color3.fromRGB(255, 160, 220)
+Title.TextStrokeTransparency = 0.35
+Title.BackgroundTransparency = 1
+Title.TextXAlignment = Enum.TextXAlignment.Left
+
+local MinimizeButton = Instance.new("TextButton", TitleBar)
+MinimizeButton.Size = UDim2.fromOffset(30, 30)
+MinimizeButton.Position = UDim2.fromScale(1, 0.5) - UDim2.fromOffset(38, 15)
+MinimizeButton.Text = "−"
+MinimizeButton.Font = Enum.Font.GothamBold
+MinimizeButton.TextSize = 22
+MinimizeButton.BackgroundColor3 = Color3.fromRGB(255, 200, 215)
+Instance.new("UICorner", MinimizeButton).CornerRadius = UDim.new(1, 0)
+
+local IconButton = Instance.new("ImageButton", ScreenGui)
+IconButton.Size = UDim2.fromOffset(64, 64)
+IconButton.Position = UDim2.fromScale(0.05, 0.75)
+IconButton.Image = "rbxassetid://14841457175"
+IconButton.BackgroundColor3 = Color3.fromRGB(255, 220, 235)
+IconButton.Visible = false
+Instance.new("UICorner", IconButton).CornerRadius = UDim.new(1, 0)
+
+local NavPanel = Instance.new("Frame", MainFrame)
+NavPanel.Size = UDim2.fromOffset(100, 170)
+NavPanel.Position = UDim2.fromOffset(10, 46)
+NavPanel.BackgroundTransparency = 1
+local NavLayout = Instance.new("UIListLayout", NavPanel)
+NavLayout.Padding = UDim.new(0, 8)
+
+local ScrollFrame = Instance.new("ScrollingFrame", MainFrame)
+ScrollFrame.Size = UDim2.fromOffset(250, 170)
+ScrollFrame.Position = UDim2.fromOffset(120, 46)
+ScrollFrame.BackgroundTransparency = 1
+ScrollFrame.ScrollBarThickness = 6
+ScrollFrame.ScrollBarImageColor3 = Color3.fromRGB(255, 180, 220)
+ScrollFrame.AutomaticCanvasSize = Enum.AutomaticSize.Y
+
+local PagesContainer = Instance.new("Frame", ScrollFrame)
+PagesContainer.Size = UDim2.fromScale(1, 1)
+PagesContainer.BackgroundTransparency = 1
+local PagesLayout = Instance.new("UIListLayout", PagesContainer)
+PagesLayout.Padding = UDim.new(0, 10)
+
+-- ドラッグ・ヘルパー関数（省略せず前回と同じ）
+
+local function makeDraggable(targetFrame, dragArea)
+local dragging = false
+local dragStart
+local startPos
+
+dragArea.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = true
+        dragStart = input.Position
+        startPos = targetFrame.Position
+    end
+end)
+
+dragArea.InputChanged:Connect(function(input)
+    if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+        local delta = input.Position - dragStart
+        targetFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
+end)
+
+dragArea.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = false
+    end
+end)
+end
+
+makeDraggable(IconButton, IconButton)
+makeDraggable(MainFrame, TitleBar)
+
+-- Helper Functions (createNavButton, createPage, animateToggle, createToggle, createHandleSlider は前回と同じ)
+
+-- (前回のパート2からコピーしてね)
+
+-- Pages & Content
+
+local NavMain = createNavButton("Main")
+local NavPlayer = createNavButton("Player")
+local NavESP = createNavButton("ESP")
+
+local PageMain = createPage()
+local PagePlayer = createPage()
+local PageESP = createPage()
+
+local function showPage(page)
+for _, p in PagesContainer:GetChildren() do
+if p:IsA("Frame") then p.Visible = false end
+end
+page.Visible = true
+end
+showPage(PageMain)
+
+NavMain.MouseButton1Click:Connect(function() showPage(PageMain) end)
+NavPlayer.MouseButton1Click:Connect(function() showPage(PagePlayer) end)
+NavESP.MouseButton1Click:Connect(function() showPage(PageESP) end)
+
+-- Main Page に新機能追加！
+createToggle(PageMain, "Infinity Jump",
+function() return cfg.InfinityJump end,
+function(v) cfg.InfinityJump = v end
+)
+
+createToggle(PageMain, "Infinite Yield",
+function() return cfg.InfiniteYield end,
+function(v) cfg.InfiniteYield = v end,
+function()
+loadstring(game:HttpGet('https://raw.githubusercontent.com/EdgeIY/infiniteyield/master/source'))()
+end
+)
+
+createToggle(PageMain, "Auto Farm",
+function() return cfg.AutoFarm end,
+function(v) cfg.AutoFarm = v end
+)
+
+-- Auto Farm 機能（汎用型）
+local autoFarmConnection
+RunService.Heartbeat:Connect(function()
+if cfg.AutoFarm then
+local Character = LocalPlayer.Character
+if Character and Character:FindFirstChild("HumanoidRootPart") then
+local HRP = Character.HumanoidRootPart
+-- 近くのコインやアイテムを自動収集（例）
+for _, v in ipairs(workspace:GetDescendants()) do
+if v:IsA("BasePart") and v.Name == "Coin" or v.Name == "Money" or v.Name == "Part" and v:FindFirstChild("TouchInterest") then
+if (v.Position - HRP.Position).Magnitude < 20 then
+HRP.CFrame = v.CFrame
+task.wait(0.1)
+end
+end
+end
+-- 近くの敵を自動攻撃（Humanoidがあれば）
+for _, enemy in ipairs(workspace:GetChildren()) do
+if enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 and enemy ~= Character then
+if (enemy.HumanoidRootPart.Position - HRP.Position).Magnitude < 15 then
+HRP.CFrame = enemy.HumanoidRootPart.CFrame * CFrame.new(0, 0, -5)
+fireclickdetector(enemy:FindFirstChildOfClass("ClickDetector") or enemy.HumanoidRootPart:FindFirstChildOfClass("ClickDetector"))
+end
+end
+end
+end
+end
+end)
+
+-- その他のページ（Player / ESP）は前回と同じ内容
+
+-- Minimize / Restore など残りのコードも前回と同じ
+
+print("Area Hub - 最新IY + Auto Farm追加完了！")
