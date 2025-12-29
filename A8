@@ -1,0 +1,184 @@
+if not game:IsLoaded() then
+    game.Loaded:Wait()
+end
+ 
+-- Services
+local Players           = game:GetService("Players")
+local UserInputService  = game:GetService("UserInputService")
+local RunService        = game:GetService("RunService")
+local TweenService      = game:GetService("TweenService")
+local Workspace         = game:GetService("Workspace")
+ 
+local LocalPlayer = Players.LocalPlayer
+local Camera = Workspace.CurrentCamera
+ 
+-- Configuration (Aimbot追加！！)
+getgenv().AreaHubCfg = getgenv().AreaHubCfg or {
+    InfinityJump = false,
+    WalkSpeed    = 16,
+    JumpPower    = 50,
+    ESPMode      = "OFF",
+    ESPDistance  = 300,
+    ESPColor     = Color3.fromRGB(255, 120, 200),
+    NoClip       = false,
+    ExternalFly  = false,
+    InfiniteYield = false,
+    AutoFarm     = false,
+    AutoAim      = false,
+    AutoCollect  = false,
+    AutoAttack   = false,
+    GodMode      = false,
+    Aimbot       = false,  -- 新規追加！！
+    UIBackgroundColor = Color3.fromRGB(255, 210, 235),
+    UITransparency = 0
+}
+local cfg = getgenv().AreaHubCfg
+ 
+-- ==================== GUI Setup ====================
+ 
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "AreaHub"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+ 
+local MainFrame = Instance.new("Frame", ScreenGui)
+MainFrame.Size = UDim2.fromOffset(380, 240)
+MainFrame.Position = UDim2.fromScale(0.5, 0.6) - UDim2.fromOffset(190, 120)
+MainFrame.BackgroundTransparency = cfg.UITransparency
+MainFrame.BackgroundColor3 = cfg.UIBackgroundColor
+Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 22)
+ 
+local Gradient = Instance.new("UIGradient", MainFrame)
+Gradient.Color = ColorSequence.new{
+    ColorSequenceKeypoint.new(0, cfg.UIBackgroundColor),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(210, 235, 255))
+}
+Gradient.Rotation = 45
+ 
+local TitleBar = Instance.new("Frame", MainFrame)
+TitleBar.Size = UDim2.fromOffset(380, 40)
+TitleBar.BackgroundTransparency = 1
+ 
+local Title = Instance.new("TextLabel", TitleBar)
+Title.Size = UDim2.fromOffset(200, 30)
+Title.Position = UDim2.fromOffset(12, 8)
+Title.Text = "Area Hub"
+Title.Font = Enum.Font.GothamBold
+Title.TextSize = 20
+Title.TextColor3 = Color3.new(1, 1, 1)
+Title.TextStrokeColor3 = Color3.fromRGB(255, 160, 220)
+Title.TextStrokeTransparency = 0.35
+Title.BackgroundTransparency = 1
+Title.TextXAlignment = Enum.TextXAlignment.Left
+ 
+-- タイトル光るエフェクト✨
+task.spawn(function()
+    while true do
+        TweenService:Create(Title, TweenInfo.new(1.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), {
+            TextStrokeTransparency = 0
+        }):Play()
+        task.wait(3)
+    end
+end)
+ 
+local DragBar = Instance.new("Frame", MainFrame)
+DragBar.Size = UDim2.fromOffset(100, 6)
+DragBar.Position = UDim2.fromScale(0.5, 0) + UDim2.fromOffset(-50, 45)
+DragBar.BackgroundColor3 = Color3.new(1, 1, 1)
+DragBar.BackgroundTransparency = 0.6
+DragBar.BorderSizePixel = 0
+Instance.new("UICorner", DragBar).CornerRadius = UDim.new(1, 0)
+ 
+local MinimizeButton = Instance.new("TextButton", TitleBar)
+MinimizeButton.Size = UDim2.fromOffset(30, 30)
+MinimizeButton.Position = UDim2.fromScale(1, 0.5) - UDim2.fromOffset(38, 15)
+MinimizeButton.Text = "−"
+MinimizeButton.Font = Enum.Font.GothamBold
+MinimizeButton.TextSize = 22
+MinimizeButton.BackgroundColor3 = Color3.fromRGB(255, 200, 215)
+Instance.new("UICorner", MinimizeButton).CornerRadius = UDim.new(1, 0)
+ 
+local SettingsButton = Instance.new("TextButton", TitleBar)
+SettingsButton.Size = UDim2.fromOffset(30, 30)
+SettingsButton.Position = UDim2.fromScale(1, 0.5) - UDim2.fromOffset(76, 15)
+SettingsButton.Text = "Settings"
+SettingsButton.Font = Enum.Font.GothamBold
+SettingsButton.TextSize = 22
+SettingsButton.BackgroundTransparency = 1
+ 
+local SearchButton = Instance.new("TextButton", TitleBar)
+SearchButton.Size = UDim2.fromOffset(30, 30)
+SearchButton.Position = UDim2.fromScale(1, 0.5) - UDim2.fromOffset(114, 15)
+SearchButton.Text = "Search"
+SearchButton.Font = Enum.Font.GothamBold
+SearchButton.TextSize = 22
+SearchButton.BackgroundTransparency = 1
+ 
+-- 可愛いアニメガールアイコン😍
+local IconButton = Instance.new("ImageButton", ScreenGui)
+IconButton.Size = UDim2.fromOffset(64, 64)
+IconButton.Position = UDim2.fromScale(0.05, 0.75)
+IconButton.Image = "rbxassetid://12961454598"
+IconButton.BackgroundColor3 = Color3.fromRGB(255, 220, 235)
+IconButton.Visible = false
+Instance.new("UICorner", IconButton).CornerRadius = UDim.new(1, 0)
+ 
+-- (NavPanel, ScrollFrame, PagesContainer, makeDraggable, Helper Functionsなど全部前回と同じなので省略してOK！コードは連続で貼ってね)
+ 
+-- ==================== Pages ====================
+ 
+-- (NavMain/NavPlayer/NavESP, PageMain/PagePlayer/PageESP, showPageなど前回と同じ)
+ 
+-- Main Page (Aimbotトグル追加！！)
+local AutoFarmToggle = createToggle(PageMain, "Auto Farm", function() return cfg.AutoFarm end, function(v) cfg.AutoFarm = v end)
+ 
+local GodModeToggle = createToggle(PageMain, "God Mode", function() return cfg.GodMode end, function(v) cfg.GodMode = v end)
+ 
+local AimbotToggle = createToggle(PageMain, "Aimbot", function() return cfg.Aimbot end, function(v) cfg.Aimbot = v end)  -- 新規追加！！
+ 
+-- (Auto Farmオプション、Infinity Jump、Infinite Yieldなど前回と同じ)
+ 
+-- Player Page / ESP Page / Settings / Search / Minimize-Restore / Floating animation 全部前回と同じ
+ 
+-- ==================== Features ====================
+ 
+-- (WalkSpeed, JumpPower, GodMode, NoClip, Auto Farm, Infinity Jumpなど前回と同じ)
+ 
+-- ==================== ESP Implementation (前回と同じ) ====================
+ 
+-- (ESPObjects, addESP, removeESP, updateESP, PlayerAdded/Removing, RenderSteppedなど全部そのまま)
+ 
+-- ==================== Aimbot Implementation (神エイム！！) ====================
+ 
+task.spawn(function()
+    while task.wait() do
+        if not cfg.Aimbot then continue end
+ 
+        local Character = LocalPlayer.Character
+        if not Character or not Character:FindFirstChild("HumanoidRootPart") then continue end
+        local HRP = Character.HumanoidRootPart
+ 
+        local closestHead = nil
+        local closestDist = math.huge
+ 
+        for _, player in ipairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("Head") and player.Character:FindFirstChild("Humanoid") and player.Character.Humanoid.Health > 0 then
+                local head = player.Character.Head
+                local dist = (head.Position - HRP.Position).Magnitude
+                if dist < cfg.ESPDistance and dist < closestDist then
+                    local screenPos, onScreen = Camera:WorldToViewportPoint(head.Position)
+                    if onScreen then
+                        closestDist = dist
+                        closestHead = head
+                    end
+                end
+            end
+        end
+ 
+        if closestHead then
+            Camera.CFrame = Camera.CFrame:Lerp(CFrame.lookAt(Camera.CFrame.Position, closestHead.Position), 0.2)
+        end
+    end
+end)
+ 
+print("Area Hub - 神Aimbot追加完了！！完璧エイムアシストで敵を一網打尽だよ！！🔥😍🚀")
